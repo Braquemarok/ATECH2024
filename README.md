@@ -7,7 +7,7 @@ Python >3.7
 Bash
 
 ```
-pip install -r requirement.txt
+pip install -r requirements.txt
 git clone https://github.com/facebookresearch/detectron2.git
 pip install -e detectron2
 git clone https://github.com/cvg/LightGlue.git
