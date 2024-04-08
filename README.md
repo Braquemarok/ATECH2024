@@ -22,6 +22,8 @@ bash setup.sh
 
 Best segmentation model : https://drive.google.com/file/d/1WvXYLJuqHREFj-6jJo97M-LS-1h3srr6/view?usp=sharing
 
+Matching model : Models are downloaded when first launching the associated program
+
 Tracking Test dataset : https://drive.google.com/file/d/1hCKqro5xOqCVYpxVl-TYW7PSZt4j7luW/view?usp=drive_link
 
 Tracking database : https://drive.google.com/file/d/1MrXsypMNI9n8DwIKpcDxUi_jn-jfNcYt/view?usp=drive_link
