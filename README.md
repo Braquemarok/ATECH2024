@@ -13,10 +13,6 @@ pip install -e detectron2
 git clone https://github.com/cvg/LightGlue.git
 pip install -e LightGlue
 ```
-A VOIR
-```
-bash setup.sh
-```
 
 ## Download 
 
