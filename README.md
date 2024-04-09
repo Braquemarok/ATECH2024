@@ -3,6 +3,7 @@
 ## requirements 
 
 Python >3.7
+
 Machine with a GPU
 
 Bash
