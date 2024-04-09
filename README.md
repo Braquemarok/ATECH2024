@@ -56,9 +56,10 @@ With :
 ### Matching 
 
 ```
-python matching.py --databasedir databasedir --datadir datadir
+python matching.py --databasedir databasedir --datadir datadir --model SuperPoint
 ```
 
 With :
 - databasedir : path to the database
 - datadir : path to the images to find
+- model : the feature extractor to use
