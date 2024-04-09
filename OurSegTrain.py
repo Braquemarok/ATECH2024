@@ -132,7 +132,7 @@ def PointRend(args):
     add_pointrend_config(cfg)
 
     # get specs
-    cfg.merge_from_file("projects/PointRend/configs/InstanceSegmentation/pointrend_rcnn_X_101_32x8d_FPN_3x_coco.yaml")
+    cfg.merge_from_file("logs/yamls/dummy/dummy/dummy/pointrend_rcnn_X_101_32x8d_FPN_3x_coco.yaml")
     
     # train dataset (relevant only to train)
     cfg.DATASETS.TRAIN = ("wood_train",)
@@ -142,7 +142,7 @@ def PointRend(args):
     cfg.DATALOADER.NUM_WORKERS = args.num_workers
 
     # loading pretrained weights
-    cfg.MODEL.WEIGHTS = "projects/PointRend/model_final_ba17b9.pkl"
+    #cfg.MODEL.WEIGHTS = "projects/PointRend/model_final_ba17b9.pkl"
 
     # set batch size
     cfg.SOLVER.IMS_PER_BATCH = args.batch_size
@@ -163,7 +163,7 @@ def PointRend(args):
 
     os.makedirs(args.logdir, exist_ok=True)
     # checkpoints dir
-    cfg.OUTPUT_DIR = os.path.join(args.logdir, args.model+args.logname)
+    cfg.OUTPUT_DIR = os.path.join(args.logdir, args.logname)
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 
     return cfg
@@ -182,7 +182,8 @@ def write_res(out):
         res = np.squeeze(res)
 
         res = res.astype(np.uint8)
-
+        
+        # get connected components
         output = cv2.connectedComponentsWithStats(res, 8, cv2.CV_32S)
         
         labels = output[1]
@@ -190,21 +191,26 @@ def write_res(out):
 
         maxi = 0
         maxL = 0
+
+        # get max connected component
         for i in range(1, len(stats), 1):
             if(stats[i][4]>maxi):
                 maxi = stats[i][4]
                 maxL = i
 
-        #print(maxL)
+        # removes non maximal connected component
         res[labels!=maxL]=0
 
+        # reverse mask
         res = (np.ones(res.shape)-res).astype(np.uint8)
 
+        # new connected components
         output = cv2.connectedComponentsWithStats(res, 8, cv2.CV_32S)
 
         labels = output[1]
         stats = output[2]
 
+        # main connected component's bounding box
         xa = stats[0][0]
         xA = xa + stats[0][2]
         ya = stats[0][1]
@@ -212,6 +218,7 @@ def write_res(out):
 
         supp = []
 
+        # get holes in mask
         for i in range(1, len(stats), 1):
 
             x1 = stats[i][0]
@@ -222,10 +229,11 @@ def write_res(out):
             if(xa<x1 and ya<y1 and xA>x2 and yA>y2):
                 supp.append(i)
         
+        # hole filling
         for s in supp:
             res[labels==s]=0
 
-        #print(stats)
+        # new mask
         res = (np.ones(res.shape)-res).astype(np.uint8)
 
         # mask segmentation
@@ -256,6 +264,8 @@ def inference(cfg, args):
 
     # get every image in the folder
     img_files = glob.glob(os.path.join(dir,'*.jpg'))
+
+
 
     # for each not annotated images
     for d in tqdm(img_files):    
@@ -291,21 +301,16 @@ def batch_inference(cfg, args):
     print("inferences")
 
     # get every image in the folder
-    img_files = glob.glob(os.path.join(dir,'testicle','*'))
+    img_files = glob.glob(os.path.join(dir,'*'))
 
     aug = T.ResizeShortestEdge(
         [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
     )
 
-    #print(torch.cuda.memory_allocated())
     for j in tqdm(range(0, len(img_files), args.batch_size)):
         img_origs = []
         inputs = []
-        # for each not annotated images
-        #print("load")
-
         torch.cuda.empty_cache()
-        #print(torch.cuda.memory_allocated())
 
 
         for welp in range(j, min(j+args.batch_size, len(img_files)), 1):   
@@ -323,7 +328,6 @@ def batch_inference(cfg, args):
 
 
         # compute mask
-        #print(inputs)
         out = model(inputs)
         out2 = []
 
@@ -333,10 +337,8 @@ def batch_inference(cfg, args):
             out2.append((res, img_origs[i][0], img_origs[i][1]))
             i+=1
 
-        #print(os.cpu_count())
         pool = Pool(min(args.batch_size,os.cpu_count()))
         pool.map(write_res, out2)
-        #print("write")
 
         for outputs in out:
             del outputs
@@ -353,7 +355,7 @@ def batch_inference(cfg, args):
 if __name__ == "__main__":
 
     # list of supported models in this program
-    available_models = {"PointRend" : PointRend, "Mask_R-CNN" : MRCNN}
+    available_models = {"PointRend" : PointRend}
 
     parser = argparse.ArgumentParser()
 

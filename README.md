@@ -3,6 +3,7 @@
 ## requirements 
 
 Python >3.7
+Machine with a GPU
 
 Bash
 
@@ -16,7 +17,7 @@ pip install -e LightGlue
 
 ## Download 
 
-Best segmentation model : https://drive.google.com/file/d/1WvXYLJuqHREFj-6jJo97M-LS-1h3srr6/view?usp=sharing
+Best segmentation model : https://drive.google.com/file/d/12wZzavrOAZWrStv2qsJO_6ROZP4UWYwN/view?usp=sharing
 
 Matching model : Models are downloaded when first launching the associated program
 
@@ -30,6 +31,8 @@ Matching database : https://drive.google.com/file/d/1MrXsypMNI9n8DwIKpcDxUi_jn-j
 ```bash
 .
 ├── logs
+│   ├── configs
+│   ├── yamls
 │   └── modelRep
 ├── database
 │   ├── feats

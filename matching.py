@@ -17,6 +17,7 @@ import math
 import pickle
 import gc
 
+# rotates the image
 def rotate_image(image, angle):
     image_center = tuple(np.array(image.shape[1::-1]) / 2)
     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
@@ -64,44 +65,52 @@ def load_image_rotate(path: Path, resize: int = None, **kwargs) -> torch.Tensor:
             imgs[i] = numpy_image_to_torch(imgs[i])
     return imgs
 
+# saves all feature files from a given repository
 def save_features(features, path = "database/"):
     for f in tqdm(features):
         serialized = pickle.dumps(features[f])
-        fil = open(path+"feats/"+f.split("/")[1]+".val", "wb")
+        print()
+        fil = open(os.path.join(path, "feats",f.split("/")[len(f.split("/"))-1]+".val"), "wb")
         fil.write(serialized)
         fil.close()
     
     load_features(features)
 
+# saves single feature file
 def save_feature(f, name, path = "database/"):
     serialized = pickle.dumps(f)
-    fil = open(path+"feats/"+name.split("/")[1]+".val", "wb")
+    fil = open(os.path.join(path,"feats",name.split("/")[len(name.split("/"))-1]+".val"), "wb")
     fil.write(serialized)
     fil.close()
 
-
-def load_features(name, path = "feats"):
-    fil = open(path+"/"+name.split("/")[len(name.split("/"))-1]+".val", "rb")
+# loads feature files
+def load_features(name, path = "database"):
+    fil = open(os.path.join(path, "feats",name.split("/")[len(name.split("/"))-1]+".val"), "rb")
     data = fil.read()
     feature = pickle.loads(data)
     return feature
 
 # loads database
-def load_database(path = "database"):
+def load_database(model, path = "database"):
 
     # feature extractor
-    extractor = SuperPoint(max_num_keypoints=2048).eval().cuda()  
-    #extractor = SIFT(max_num_keypoints=2048).eval().cuda()  
+    
+    if(model in "SuperPoint"):
+        extractor = SuperPoint(max_num_keypoints=2048).eval().cuda()  
+    else:
+        extractor = SIFT(max_num_keypoints=2048).eval().cuda()  
 
     # all images .jpg in repo
     img_files2 = glob.glob(os.path.join(path, "imgs",'*.jpg'))
     features = {}
 
+    os.makedirs(os.path.join(path, "feats"), exist_ok=True)
+
     print("extracting features from database")
     for i in tqdm(img_files2):
         # load each image as a torch.Tensor on GPU with shape (3,H,W), normalized in [0,1]
 
-        if not os.path.exists(path+"/feats/"+i.split("/")[len(i.split("/"))-1]+".val"):
+        if not os.path.exists(os.path.join(path, "feats", i.split("/")[len(i.split("/"))-1]+".val")):
             image1 = load_image(i).cuda()
             # extract local features
             feats1 = extractor.extract(image1)
@@ -119,24 +128,19 @@ def load_database(path = "database"):
 
     return features          
 
-def match_repository(features, path = "test_dataset"):
+def match_repository(features, model, path = "test_dataset"):
     
     TP = 0
     FN = 0
 
     metrics = {}
 
-    # SuperPoint+LightGlue
-    extractor = SuperPoint(max_num_keypoints=2048).eval().cuda()  
-    matcher = LightGlue(features='superpoint').eval().cuda() 
-    
-    #extractor = DISK(max_num_keypoints=2048).eval().cuda()  
-    #matcher = LightGlue(features='disk').eval().cuda()
-
-    #extractor = SIFT(max_num_keypoints=2048).eval().cuda()
-    #matcher = LightGlue(features='sift').eval().cuda()
-
-    #matcher.compile(mode='reduce-overhead')
+    if(model in "SuperPoint"):
+        extractor = SuperPoint(max_num_keypoints=2048).eval().cuda()  
+        matcher = LightGlue(features='superpoint').eval().cuda() 
+    else:
+        extractor = SIFT(max_num_keypoints=2048).eval().cuda()
+        matcher = LightGlue(features='sift').eval().cuda()
     
     # all .jpg
     img_files = sorted(glob.glob(os.path.join(path,'*.jpg')))
@@ -158,12 +162,6 @@ def match_repository(features, path = "test_dataset"):
             # get all rotated version
             imgs = load_image_rotate(img_file)
 
-            #bestPoints = None
-            #bestMatches = None
-            #bestImg = None
-
-        
-            #print("bestMatchs/res"+img_file.split("/")[1]+",bestMatch.jpg")
             for img in imgs:
 
                 # extract features
@@ -191,11 +189,7 @@ def match_repository(features, path = "test_dataset"):
                         if(len(m_kpts0)>maxP):
                             maxP=len(m_kpts0)
                             nameP = i
-                            #bestPoints = (m_kpts0, m_kpts1, kpts0, kpts1)
-                            #bestMatches = matches01
-                            #bestImg = img
 
-                        
                         if(i in metrics[img_files[j]]):
                             if(metrics[img_files[j]][i][0]<len(m_kpts0)):
                                 metrics[img_files[j]][i] = [len(m_kpts0), len(m_kpts0)/(max(len(kpts0), len(kpts1))), len(m_kpts0)/(len(kpts0) + len(kpts1)), len(m_kpts0)/len(kpts0)]
@@ -211,29 +205,6 @@ def match_repository(features, path = "test_dataset"):
                 rrr += verif[veri]+"_" 
 
             verif = rrr
-
-            # UNKNOWN MEMORY LEAK ON LINUX
-
-            # load both images
-            #image1 = load_image(nameP).cuda() 
-            #image0 = bestImg
-
-            # plot of the images with points      
-            #axes = viz2d.plot_images([image0, image1])
-            #viz2d.plot_matches(bestPoints[0], bestPoints[1], color="lime", lw=0.2)
-            # save plot
-            #viz2d.save_plot("bestMatchs/res"+img_file.replace("noAnnotResold/", "")+",bestMatch.jpg")
-            #matplotlib.pyplot.close()
-
-            # plot of the images with points 
-            #kpc0, kpc1 = viz2d.cm_prune(bestMatches["prune0"]), viz2d.cm_prune(bestMatches["prune1"])     
-            #axes = viz2d.plot_images([image0, image1])
-            #viz2d.plot_keypoints([bestPoints[2], bestPoints[3]], colors=[kpc0, kpc1], ps=6)
-            # save plot
-            #viz2d.save_plot("bestMatchsStats/res"+img_file.replace("noAnnotResold/", "")+",bestMatch.jpg")
-
-            # free memory
-            #matplotlib.pyplot.close()
 
             # if image matched to corresponding image 
             if(verif in img_file):
@@ -252,12 +223,7 @@ def match_repository(features, path = "test_dataset"):
 
             f.close()
 
-            #img_file = img_files[j]
             del verif
-            #del image1
-            #del image0
-            #del bestPoints
-            #del bestImg
             
             for i in range(len(imgs)):
                 del imgs[0]
@@ -267,8 +233,6 @@ def match_repository(features, path = "test_dataset"):
 
     accur = TP/(TP+FN)
     print("accuracy : "+str(accur))
-    #print(metrics)
-    #ecartM = []
 
     maxM = {}
     for k in metrics:
@@ -341,10 +305,13 @@ if __name__ == "__main__":
     # dir of database 
     parser.add_argument("--databasedir", type=Path, default='noAnnotResorig')
 
+    # feature extractor 
+    parser.add_argument("--model", choices=["SuperPoint", "SIFT"], default='SuperPoint')
+
     args = parser.parse_args()
 
     # loads database
-    features = load_database(args.databasedir)
+    features = load_database(args.model, args.databasedir)
     
     # matches all images in dir to database
-    exec(f"{args.command}(features, args.datadir)")
+    exec(f"{args.command}(features, args.model, args.datadir)")
