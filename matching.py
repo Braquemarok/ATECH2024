@@ -132,6 +132,7 @@ def match_repository(features, model, path = "test_dataset"):
     
     TP = 0
     FN = 0
+    thr = 0.37
 
     metrics = {}
 
@@ -154,82 +155,79 @@ def match_repository(features, model, path = "test_dataset"):
 
         print(img_files[j])
 
-        if True:
+        maxP = 0
+        nameP = ""
 
-            maxP = 0
-            nameP = ""
+        # get all rotated version
+        imgs = load_image_rotate(img_file)
 
-            # get all rotated version
-            imgs = load_image_rotate(img_file)
+        for img in imgs:
 
-            for img in imgs:
-
-                # extract features
-                feats0 = extractor.extract(img.cuda())
-
-                if(maxP<210):
-                    for i in tqdm(features):
+            # extract features
+            feats0 = extractor.extract(img.cuda())
+            if(maxP<thr):
+                for i in tqdm(features):
                         
-                        feats1 = {}
-                        # get database features
-                        for k in features[i]:
+                    feats1 = {}
+                    # get database features
+                    for k in features[i]:
                             feats1[k] = torch.tensor(features[i][k]).cuda()
 
-                        # match the features
-                        matches01 = matcher({'image0': feats0, 'image1': feats1})
-                        feats0_1, feats1_1, matches01 = [rbd(x) for x in [feats0, feats1, matches01]]  # remove batch dimension
+                    # match the features
+                    matches01 = matcher({'image0': feats0, 'image1': feats1})
+                    feats0_1, feats1_1, matches01 = [rbd(x) for x in [feats0, feats1, matches01]]  # remove batch dimension
 
-                        # keypoints
-                        kpts0, kpts1, matches = feats0_1["keypoints"], feats1_1["keypoints"], matches01["matches"]
+                    # keypoints
+                    kpts0, kpts1, matches = feats0_1["keypoints"], feats1_1["keypoints"], matches01["matches"]
 
-                        # matched keypoints
-                        m_kpts0, m_kpts1 = kpts0[matches[..., 0]], kpts1[matches[..., 1]]
+                    # matched keypoints
+                    m_kpts0, m_kpts1 = kpts0[matches[..., 0]], kpts1[matches[..., 1]]
 
-                        # get max matched keypoints
-                        if(len(m_kpts0)>maxP):
-                            maxP=len(m_kpts0)
-                            nameP = i
+                    # get max matched keypoints
+                    if(len(m_kpts0)>maxP):
+                        maxP=len(m_kpts0)/len(kpts0)
+                        nameP = i
 
-                        if(i in metrics[img_files[j]]):
-                            if(metrics[img_files[j]][i][0]<len(m_kpts0)):
-                                metrics[img_files[j]][i] = [len(m_kpts0), len(m_kpts0)/(max(len(kpts0), len(kpts1))), len(m_kpts0)/(len(kpts0) + len(kpts1)), len(m_kpts0)/len(kpts0)]
-                        else:
+                    if(i in metrics[img_files[j]]):
+                        if(metrics[img_files[j]][i][0]<len(m_kpts0)):
                             metrics[img_files[j]][i] = [len(m_kpts0), len(m_kpts0)/(max(len(kpts0), len(kpts1))), len(m_kpts0)/(len(kpts0) + len(kpts1)), len(m_kpts0)/len(kpts0)]
+                    else:
+                        metrics[img_files[j]][i] = [len(m_kpts0), len(m_kpts0)/(max(len(kpts0), len(kpts1))), len(m_kpts0)/(len(kpts0) + len(kpts1)), len(m_kpts0)/len(kpts0)]
             
-            # get name of the best matching image
-            verif = nameP.split("/")[1].replace("R", "")
-            verif = verif.split("_")
+        # get name of the best matching image
+        verif = nameP.split("/")[len(nameP.split("/"))-1].replace("R", "")
+        verif = verif.split("_")
 
-            rrr = ""
-            for veri in range(len(verif)-1):
-                rrr += verif[veri]+"_" 
+        rrr = ""
+        for veri in range(len(verif)-1):
+            rrr += verif[veri]+"_" 
 
-            verif = rrr
+        verif = rrr
 
-            # if image matched to corresponding image 
-            if(verif in img_file):
-                TP+=1
-            else:
-                FN+=1
+        # if image matched to corresponding image 
+        if(verif in img_file):
+            TP+=1
+        else:
+            FN+=1
 
-            accur = TP/(TP+FN)
-            print(nameP)
-            print(maxP)
-            print("accuracy : "+str(accur)+" at step "+ str(j))
+        accur = TP/(TP+FN)
+        print(nameP)
+        print(maxP)
+        print("accuracy : "+str(accur)+" at step "+ str(j))
 
-            f = open("resStatsInter.txt", "a")
+        f = open("resStatsInter.txt", "a")
     
-            f.write(img_file + " | "+ nameP + "\n")
+        f.write(img_file + " | "+ nameP + "\n")
 
-            f.close()
+        f.close()
 
-            del verif
+        del verif
             
-            for i in range(len(imgs)):
-                del imgs[0]
-            del imgs
+        for i in range(len(imgs)):
+            del imgs[0]
+        del imgs
 
-            gc.collect()
+        gc.collect()
 
     accur = TP/(TP+FN)
     print("accuracy : "+str(accur))
