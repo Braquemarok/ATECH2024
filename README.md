@@ -1,4 +1,7 @@
-# ICPR2024
+# ATECH2024
+
+from "A new approach to biometric wood log traceability combining
+traditional methods and deep learning"
 
 ## requirements 
 
